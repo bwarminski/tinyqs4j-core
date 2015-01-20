@@ -36,11 +36,10 @@ redis.call('HSET', headersKey, uuid, headersVal)
 if expires >= 0 then
     redis.call('ZADD', expirations, expires, uuid)
 end
+redis.call('HSET', deliveries, uuid, 0)
 if delay >= 0 and delay > now then
-    redis.call('HSET', deliveries, uuid, -1)
     redis.call('ZADD', pending, delay, uuid)
-else
-    redis.call('HSET', deliveries, uuid, 0)
+else    
     redis.call('LPUSH', active, uuid)
 end
 return uuid

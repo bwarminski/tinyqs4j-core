@@ -9,7 +9,7 @@
 --          replyTo - channel to reply
 -- send keys: channel:counter channel:active, channel:pending, data, channel:expirations, deliveries, timestamps, headers
 -- KEYS: channel:reserved channel:pending data channel:expirations, deliveries, timestamps, headers
--- ARGS: uuid now
+-- ARGS: uuid releaseAt
 
 -- Move message to pending
 -- Return headers and data
@@ -23,12 +23,12 @@ local timestamps = KEYS[6]
 local headersKey = KEYS[7]
 
 local uuid = ARGV[1]
-local now = ARGV[2]
+local releaseAt = ARGV[2]
 
-redis.call('LREM', reserved, 0, uuid)
-redis.call('ZADD', pending, now, uuid)
+if tonumber(redis.call('LREM', reserved, 0, uuid)) < 1 and redis.call('ZSCORE', pending, uuid) == nil then return nil end
+redis.call('ZADD', pending, releaseAt, uuid)
 return {'headers', redis.call('HGET', headersKey, uuid), 
         'data', redis.call('HGET', dataKey, uuid), 
         'expiration', redis.call('ZSCORE', expirations, uuid),
-        'deliveries', redis.call('HGET', deliveries, uuid),
+        'deliveries', redis.call('HINCRBY', deliveries, uuid, 1),
         'timestamp', redis.call('HGET', timestamps, uuid)}

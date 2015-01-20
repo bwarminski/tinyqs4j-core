@@ -1,9 +1,9 @@
 package co.tinyqs.tinyqs4j.core;
 
-import java.util.Collections;
-import java.util.Map;
-
 import co.tinyqs.tinyqs4j.api.ByteMessage;
+import co.tinyqs.tinyqs4j.api.MessageBuilder;
+
+import java.util.Map;
 
 /**
  * @author bwarminski
@@ -19,24 +19,20 @@ public class RedisByteMessage implements ByteMessage
     private final Map<String,Object> headers;
     private final long delay;
     
-    public static class Builder
-    {
-        private String uuid = null;
-        private byte[] bytes = null;
-        private long expiration = -1;
-        private int deliveryCount = -1;
-        private long timestamp = -1;
-        private Map<String,Object> headers = Collections.emptyMap();
-        private long delay = -1;
-        
-        public Builder uuid(String uuid) {this.uuid = uuid; return this;}
-        public Builder bytes(byte[] bytes) {this.bytes = bytes; return this;}
-        public Builder expiration(long expiration) {this.expiration = expiration; return this;}
-        public Builder deliveryCount(int deliveryCount) {this.deliveryCount = deliveryCount; return this;}
-        public Builder timestamp(long timestamp) {this.timestamp = timestamp; return this;}
-        public Builder headers(Map<String,Object> headers) {this.headers = headers; return this;}
-        public Builder delay(long delay) {this.delay = delay; return this;}
-        
+    public static class Builder extends MessageBuilder<RedisByteMessage>
+    {    
+        public static Builder wrap(ByteMessage message)
+        {
+            Builder builder = new Builder();
+            builder.uuid = message.getUUID();
+            builder.bytes = message.getBytes();
+            builder.expiration = message.getExpiration();
+            builder.deliveryCount = message.getDeliveryCount();
+            builder.timestamp = message.getTimestamp();
+            builder.headers = message.getHeaders();
+            builder.delay = message.getDelay();
+            return builder;
+        }
         public RedisByteMessage build()
         {
             return new RedisByteMessage(this.uuid, this.bytes, this.expiration, this.deliveryCount, this.timestamp, this.headers, this.delay);

@@ -40,6 +40,12 @@ class Scripts
      */
     public static final ScriptSHAPair ACKNOWLEDGE;
     
+    /**
+     * -- KEYS: channel:reserved channel:pending channel:active channel:expirations
+     * -- ARGS: now
+     */
+    public static final ScriptSHAPair TICK;
+    
     private static ScriptSHAPair _readScript(String filename) throws IOException
     {
         try (Reader reader = new InputStreamReader(Preconditions.checkNotNull(Scripts.class.getResourceAsStream(filename)), "UTF-8"))
@@ -57,6 +63,7 @@ class Scripts
             RECEIVE = _readScript("receive.lua");
             RELEASE = _readScript("release.lua");    
             ACKNOWLEDGE = _readScript("acknowledge.lua");
+            TICK = _readScript("tick.lua");
         }        
         catch (IOException e)
         {
@@ -64,5 +71,5 @@ class Scripts
         }
     }
     
-    public static final List<ScriptSHAPair> ALL = ImmutableList.of(SEND,RECEIVE, RELEASE, ACKNOWLEDGE);
+    public static final List<ScriptSHAPair> ALL = ImmutableList.of(SEND,RECEIVE, RELEASE, ACKNOWLEDGE, TICK);
 }

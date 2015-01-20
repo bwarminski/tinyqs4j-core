@@ -17,11 +17,15 @@ public class ChannelIntegrationTest
     
     private InternalContext context;
     private RedisChannel channel;
+    private RedisTopic topic;
+    private RedisConversation conversation;
     
-    public ChannelIntegrationTest(InternalContext context, RedisChannel channel)
+    public ChannelIntegrationTest(InternalContext context, RedisChannel channel, RedisTopic topic, RedisConversation conversation)
     {
         this.channel = channel;
+        this.topic = topic;
         this.context = context;
+        this.conversation = conversation;
     }
     
     public void testSimpleSend() throws Exception
@@ -94,11 +98,57 @@ public class ChannelIntegrationTest
         Preconditions.checkState(response == null, "Response should be null");
     }
     
+    public void testTick() throws Exception
+    {
+        channel.tick();
+        ByteMessage message = RedisByteMessage.builder().bytes(SIMPLE_BYTES).expiration(System.currentTimeMillis() + 1000).build();
+        channel.send(message);
+        channel.tick();
+        ByteMessage response = Preconditions.checkNotNull(channel.receive());
+        channel.tick();
+        channel.release(response);
+        Thread.sleep(1000);
+        channel.tick();
+    }
+    
+    public void testPublish() throws Exception
+    {
+        topic.subscribe("integrationTest");
+        ByteMessage message = RedisByteMessage.builder().bytes(SIMPLE_BYTES).build();
+        int nChannels = topic.publish(message);
+        Preconditions.checkState(nChannels == 1, "Expecting one channel");
+        ByteMessage response = channel.receive();
+        Preconditions.checkState(response != null, "Expecting response on channel");
+        topic.unsubscribe("integrationTest");
+        nChannels = topic.publish(message);
+        Preconditions.checkState(nChannels == 0, "Expecting no channels");
+        response = channel.receive();
+        Preconditions.checkState(response == null, "Expecting no response");        
+    }
+    
+    public void testConversation() throws Exception
+    {
+        byte[] pingBytes = context.getObjectMapper().writeValueAsBytes("PING");
+        byte[] pongBytes = context.getObjectMapper().writeValueAsBytes("PONG");
+        ByteMessage pingMsg = RedisByteMessage.builder().bytes(pingBytes).build();
+        ByteMessage pongMsg = RedisByteMessage.builder().bytes(pongBytes).build();
+        String claimCheck = conversation.put(pingMsg);
+        Preconditions.checkState(claimCheck != null, "Expecting claim check to not be null");
+        ByteMessage confPing = conversation.take();
+        Preconditions.checkState(confPing != null, "Expecting conf ping to not be null");
+        Preconditions.checkState(Arrays.equals(confPing.getBytes(), pingBytes), "Expecing ping types to match");
+        conversation.respond(confPing, pongMsg);
+        ByteMessage confPong = conversation.wait(claimCheck);
+        Preconditions.checkState(confPong != null, "Expecting conf pong to not be null");
+        Preconditions.checkState(Arrays.equals(confPong.getBytes(), pongBytes), "Expecting pong types to match");
+        conversation.acknowledge(claimCheck, confPong);
+    }
+    
     public static void main(String[] args) throws Exception
     {
-        DefaultInternalContext context = new DefaultInternalContext(new RedisConfiguration());
+        InternalContext context = new InternalContext(new RedisConfiguration());
         RedisConnection controlChannel = context.getConnection();
-        ChannelIntegrationTest test = new ChannelIntegrationTest(context, new RedisChannel(context, "integrationTest"));
+        ChannelIntegrationTest test = new ChannelIntegrationTest(context, new RedisChannel(context, "integrationTest"), new RedisTopic(context, "integrationBroadcastTest"), new RedisConversation(context, new RedisChannel(context, "integrationConversationTest"), null));
         try
         {
             controlChannel.exceptionOnError(true);
@@ -123,6 +173,14 @@ public class ChannelIntegrationTest
             System.out.println("Testing acknowledge");
             _flush(controlChannel);
             test.testSendReceiveAck();
+            _flush(controlChannel);
+            System.out.println("Testing tick");
+            test.testTick();
+            _flush(controlChannel);
+            System.out.println("Testing topics");
+            test.testPublish();
+            System.out.println("Testing conversations");
+            test.testConversation();
             System.out.println("Testing complete");
         }
         finally

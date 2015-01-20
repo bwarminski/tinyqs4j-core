@@ -2,11 +2,10 @@ package co.tinyqs.tinyqs4j.core;
 
 import java.io.IOException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import co.tinyqs.tinyqs4j.api.ByteMessage;
-import co.tinyqs.tinyqs4j.api.Message;
 import co.tinyqs.tinyredis.RedisSerializer;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class InternalRedisSerializer implements RedisSerializer
 {
